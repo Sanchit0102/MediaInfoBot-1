@@ -4,7 +4,7 @@ from aiohttp import ClientSession, web
 from aiofiles import open as aiopen
 from aiofiles.os import remove as aioremove, path as aiopath, mkdir
 from os import path as ospath, getcwd
-import re, os, asyncio, subprocess
+import re, os, asyncio
 from datetime import datetime
 from telegraph import Telegraph
 from dotenv import load_dotenv
@@ -237,12 +237,12 @@ async def handle_mediainfo(client: Client, message: Message):
             await aioremove(file_path)
 
 # Register message handlers
-@app.on_message(filters.command(["start"]))
+@app.on_message(filters.command("start") & filters.private)
 async def start_command(client, message):
     """Handle /start command"""
     await message.reply_text(get_welcome_message())
 
-@app.on_message(filters.private & ~filters.command(["start"]))
+@app.on_message(filters.private & ~filters.command("start"))
 async def handle_all_messages(client, message):
     """Handle all private messages"""
     # Process only if message contains media or URL
@@ -267,8 +267,8 @@ async def main():
     await start_aiohttp()
     
     # Start the bot
-    print("Starting MediaInfo Bot...")
     await app.start()
+    print("Starting MediaInfo Bot...")
     
     # Keep the bot running
     await idle()

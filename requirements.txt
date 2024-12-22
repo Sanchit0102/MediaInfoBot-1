@@ -3,4 +3,4 @@ tgcrypto
 aiohttp
 aiofiles
 python-dotenv
-telegraph-async
+telegraph
