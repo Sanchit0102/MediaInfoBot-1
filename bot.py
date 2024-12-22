@@ -21,7 +21,6 @@ API_HASH = os.getenv('API_HASH')
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 TELEGRAPH_TOKEN = os.getenv('TELEGRAPH_TOKEN')
 DOWNLOAD_DIR = "MediaInfo/"
-AUTHORIZED_USERS = [int(id) for id in os.getenv('AUTHORIZED_USERS', '').split(',') if id]
 
 # Initialize aiohttp web app
 web_app = web.Application()
@@ -188,9 +187,6 @@ def get_welcome_message():
 
 async def handle_mediainfo(client: Client, message: Message):
     """Main handler for mediainfo"""
-    if message.from_user.id not in AUTHORIZED_USERS:
-        await message.reply_text("❌ You are not authorized to use this bot.")
-        return
 
     status_msg = await message.reply_text("⏳ <b>Processing request...</b>")
     file_path = None
