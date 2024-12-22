@@ -4,12 +4,9 @@ from aiohttp import ClientSession, web
 from aiofiles import open as aiopen
 from aiofiles.os import remove as aioremove, path as aiopath, mkdir
 from os import path as ospath, getcwd
-import re
-import asyncio
-import subprocess
+import re, os, asyncio, subprocess
 from datetime import datetime
 from telegraph import Telegraph
-import os
 from dotenv import load_dotenv
 
 # Load environment variables
