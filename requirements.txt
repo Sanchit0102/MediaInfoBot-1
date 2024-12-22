@@ -1,0 +1,6 @@
+pyrogram
+tgcrypto
+aiohttp
+aiofiles
+python-dotenv
+telegraph-async
