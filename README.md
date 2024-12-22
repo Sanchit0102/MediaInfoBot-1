@@ -1,2 +1,2 @@
 # MediaInfoBot
-A telegram bot that sends metadata info our your sended files.
+A telegram bot that sends metadata info of your sended files.
