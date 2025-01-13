@@ -1,6 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from telegraph import Telegraph
+from telegraph.aio import Telegraph
 from aiohttp import ClientSession
 import os
 import asyncio
