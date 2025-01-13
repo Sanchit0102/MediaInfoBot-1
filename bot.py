@@ -17,6 +17,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Bot Configuration
 API_ID = os.getenv("API_ID")
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -25,7 +26,7 @@ CHUNK_SIZE = 5 * 1024 * 1024  # 5MB chunks
 MAX_CHUNKS = 2  # Maximum number of chunks to analyze
 
 # Initialize the bot and Telegraph
-app = Client("MediaInfoBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+app = Client("MediaInfoBot", api_id=Config.API_ID, api_hash=Config.API_HASH, bot_token=Config.BOT_TOKEN)
 telegraph = Telegraph(TELEGRAPH_TOKEN)
 
 # Media info sections with emojis
@@ -73,10 +74,14 @@ async def get_mediainfo(file_path: str) -> str:
         return ""
 
 def parse_mediainfo(output: str, file_name: str, file_size: int) -> str:
-    """Parse mediainfo output into HTML format for Telegraph."""
-    html_content = f"<h4>📁 File Information</h4><br>"
-    html_content += f"<p><strong>File Name:</strong> {file_name}</p>"
-    html_content += f"<p><strong>Total Size:</strong> {format_size(file_size)}</p><br>"
+    """Parse mediainfo output into Telegraph-compatible HTML format."""
+    # Telegraph supports only these HTML tags:
+    # a, aside, b, blockquote, br, code, em, figcaption, figure, h3, h4, hr, i, iframe, img, li, ol, p, pre, s, strong, u, ul, video
+    
+    html_content = f"<h3>📁 File Information</h3>"
+    html_content += f"<p><b>File Name:</b> {file_name}</p>"
+    html_content += f"<p><b>Total Size:</b> {format_size(file_size)}</p>"
+    html_content += "<hr/>"
     
     current_section = ""
     section_content = ""
@@ -85,27 +90,28 @@ def parse_mediainfo(output: str, file_name: str, file_size: int) -> str:
         line = line.strip()
         if not line:
             if section_content:
-                html_content += f"{section_content}<br>"
+                html_content += f"{section_content}<hr/>"
                 section_content = ""
             continue
             
         if ':' not in line:
             if section_content:
-                html_content += f"{section_content}<br>"
+                html_content += f"{section_content}<hr/>"
                 section_content = ""
             
             current_section = line
             emoji = SECTION_EMOJIS.get(current_section, '📝')
-            html_content += f"<h4>{emoji} {current_section}</h4><br>"
+            html_content += f"<h4>{emoji} {current_section}</h4>"
             continue
             
         key, value = line.split(':', 1)
-        section_content += f"<p><strong>{key.strip()}:</strong> {value.strip()}</p>"
+        section_content += f"<p><b>{key.strip()}:</b> {value.strip()}</p>"
     
     if section_content:
-        html_content += f"{section_content}<br>"
+        html_content += f"{section_content}<hr/>"
     
-    html_content += "<br><small>Note: Analysis based on initial file chunks</small>"
+    # Add note about chunk analysis using allowed tags
+    html_content += "<blockquote>Analysis based on initial file chunks</blockquote>"
     return html_content
 
 def format_size(size: int) -> str:
@@ -126,7 +132,7 @@ async def create_telegraph_page(title: str, content: str) -> str:
         )
         return f"https://telegra.ph/{response['path']}"
     except Exception as e:
-        logger.error(f"Error creating Telegraph page: {e}")
+        logger.error(f"Error creating Telegraph page: {e}", exc_info=True)
         return ""
 
 @app.on_message(filters.command(["mediainfo", "mi"]))
@@ -145,8 +151,8 @@ async def handle_mediainfo(client: Client, message: Message):
         
         # Get media information
         media = replied.document or replied.video or replied.audio
-        file_name = media.file_name or "Unknown"
-        file_size = media.file_size
+        file_name = getattr(media, 'file_name', 'Unknown')
+        file_size = getattr(media, 'file_size', 0)
 
         # Create temporary file
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
