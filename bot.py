@@ -17,18 +17,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Bot Configuration
-class Config:
-    API_ID = os.getenv("API_ID")
-    API_HASH = os.getenv("API_HASH")
-    BOT_TOKEN = os.getenv("BOT_TOKEN")
-    TELEGRAPH_TOKEN = os.getenv("TELEGRAPH_TOKEN")
-    CHUNK_SIZE = 5 * 1024 * 1024  # 5MB chunks
-    MAX_CHUNKS = 2  # Maximum number of chunks to analyze
+API_ID = os.getenv("API_ID")
+API_HASH = os.getenv("API_HASH")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+TELEGRAPH_TOKEN = os.getenv("TELEGRAPH_TOKEN")
+CHUNK_SIZE = 5 * 1024 * 1024  # 5MB chunks
+MAX_CHUNKS = 2  # Maximum number of chunks to analyze
 
 # Initialize the bot and Telegraph
-app = Client("MediaInfoBot", api_id=Config.API_ID, api_hash=Config.API_HASH, bot_token=Config.BOT_TOKEN)
-telegraph = Telegraph(Config.TELEGRAPH_TOKEN)
+app = Client("MediaInfoBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+telegraph = Telegraph(TELEGRAPH_TOKEN)
 
 # Media info sections with emojis
 SECTION_EMOJIS = {
@@ -49,10 +47,10 @@ async def stream_media(message: Message, temp_path: str) -> Optional[str]:
 
         async with aiofiles.open(temp_path, 'wb') as file:
             downloaded_chunks = 0
-            async for chunk in app.stream_media(media, limit=Config.MAX_CHUNKS):
+            async for chunk in app.stream_media(media, limit=MAX_CHUNKS):
                 await file.write(chunk)
                 downloaded_chunks += 1
-                if downloaded_chunks >= Config.MAX_CHUNKS:
+                if downloaded_chunks >= MAX_CHUNKS:
                     break
         
         return temp_path
