@@ -26,7 +26,7 @@ CHUNK_SIZE = 5 * 1024 * 1024  # 5MB chunks
 MAX_CHUNKS = 2  # Maximum number of chunks to analyze
 
 # Initialize the bot and Telegraph
-app = Client("MediaInfoBot", api_id=Config.API_ID, api_hash=Config.API_HASH, bot_token=Config.BOT_TOKEN)
+app = Client("MediaInfoBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 telegraph = Telegraph(TELEGRAPH_TOKEN)
 
 # Media info sections with emojis
