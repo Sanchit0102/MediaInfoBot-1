@@ -29,16 +29,6 @@ MAX_CHUNKS = 2  # Maximum number of chunks to analyze
 app = Client("MediaInfoBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 telegraph = Telegraph(TELEGRAPH_TOKEN)
 
-# Media info sections with emojis
-SECTION_EMOJIS = {
-    'General': '📄',
-    'Video': '🎥',
-    'Audio': '🔊',
-    'Subtitle': '💬',
-    'Chapters': '📑',
-    'Format': '📦'
-}
-
 async def stream_media(message: Message, temp_path: str) -> Optional[str]:
     """Stream media in chunks and save only required portion for analysis."""
     try:
@@ -73,47 +63,6 @@ async def get_mediainfo(file_path: str) -> str:
         logger.error(f"Error getting mediainfo: {e}")
         return ""
 
-def parse_mediainfo(output: str, file_name: str, file_size: int) -> str:
-    """Parse mediainfo output into Telegraph-compatible HTML format."""
-    # Telegraph supports only these HTML tags:
-    # a, aside, b, blockquote, br, code, em, figcaption, figure, h3, h4, hr, i, iframe, img, li, ol, p, pre, s, strong, u, ul, video
-    
-    html_content = f"<h3>📁 File Information</h3>"
-    html_content += f"<p><b>File Name:</b> {file_name}</p>"
-    html_content += f"<p><b>Total Size:</b> {format_size(file_size)}</p>"
-    html_content += "<hr/>"
-    
-    current_section = ""
-    section_content = ""
-    
-    for line in output.split('\n'):
-        line = line.strip()
-        if not line:
-            if section_content:
-                html_content += f"{section_content}<hr/>"
-                section_content = ""
-            continue
-            
-        if ':' not in line:
-            if section_content:
-                html_content += f"{section_content}<hr/>"
-                section_content = ""
-            
-            current_section = line
-            emoji = SECTION_EMOJIS.get(current_section, '📝')
-            html_content += f"<h4>{emoji} {current_section}</h4>"
-            continue
-            
-        key, value = line.split(':', 1)
-        section_content += f"<p><b>{key.strip()}:</b> {value.strip()}</p>"
-    
-    if section_content:
-        html_content += f"{section_content}<hr/>"
-    
-    # Add note about chunk analysis using allowed tags
-    html_content += "<blockquote>Analysis based on initial file chunks</blockquote>"
-    return html_content
-
 def format_size(size: int) -> str:
     """Format file size in human-readable format."""
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
@@ -122,15 +71,98 @@ def format_size(size: int) -> str:
         size /= 1024
     return f"{size:.2f} PB"
 
+def parse_mediainfo(output: str, file_name: str, file_size: int) -> str:
+    """Parse mediainfo output into Telegraph-compatible HTML format with proper tag closure."""
+    
+    def clean_value(value: str) -> str:
+        """Clean and escape HTML special characters."""
+        return value.replace('<', '&lt;').replace('>', '&gt;')
+    
+    html_parts = []
+    
+    # File Information Header
+    html_parts.append("<h3>File Information</h3>")
+    html_parts.append(f"<p><b>File Name:</b> {clean_value(file_name)}</p>")
+    html_parts.append(f"<p><b>Total Size:</b> {format_size(file_size)}</p>")
+    html_parts.append("<br/>")
+    
+    current_section = ""
+    section_lines = []
+    
+    for line in output.split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Handle section headers
+        if ':' not in line:
+            # Add previous section if exists
+            if section_lines:
+                html_parts.extend(section_lines)
+                section_lines = []
+            
+            current_section = line
+            emoji = SECTION_EMOJIS.get(current_section, '📝')
+            html_parts.append(f"<h4>{emoji} {clean_value(current_section)}</h4>")
+            continue
+        
+        # Handle key-value pairs
+        key, value = line.split(':', 1)
+        key = clean_value(key.strip())
+        value = clean_value(value.strip())
+        section_lines.append(f"<p><b>{key}</b>: {value}</p>")
+    
+    # Add last section if exists
+    if section_lines:
+        html_parts.extend(section_lines)
+    
+    # Add note about analysis
+    html_parts.append("<br/>")
+    html_parts.append("<p><i>Note: Analysis based on initial file chunks</i></p>")
+    
+    # Join all parts with proper spacing
+    return "\n".join(html_parts)
+
+# Updated SECTION_EMOJIS dictionary
+SECTION_EMOJIS = {
+    'General': '📄',
+    'Video': '🎥',
+    'Audio': '🔊',
+    'Text': '💬',  # For subtitles
+    'Subtitles': '💬',
+    'Format': '📦',
+    'Chapters': '📑'
+}
+
 async def create_telegraph_page(title: str, content: str) -> str:
-    """Create a Telegraph page with the media info."""
+    """Create a Telegraph page with the media info with error handling."""
     try:
+        # Clean the title for Telegraph
+        clean_title = title[:128]  # Telegraph title length limit
+        
+        # Create page
         response = await telegraph.create_page(
-            title=title,
+            title=clean_title,
             html_content=content,
-            author_name="MediaInfo Bot"
+            author_name="MediaInfo Bot",
+            author_url="https://t.me/your_bot_username"  # Replace with your bot's username
         )
-        return f"https://telegra.ph/{response['path']}"
+        
+        # Verify response
+        if not response or 'path' not in response:
+            logger.error(f"Invalid Telegraph response: {response}")
+            return ""
+            
+        url = f"https://telegra.ph/{response['path']}"
+        
+        # Verify the page exists
+        async with ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status != 200:
+                    logger.error(f"Created page not accessible: {resp.status}")
+                    return ""
+        
+        return url
     except Exception as e:
         logger.error(f"Error creating Telegraph page: {e}", exc_info=True)
         return ""
@@ -175,8 +207,10 @@ async def handle_mediainfo(client: Client, message: Message):
             html_content = parse_mediainfo(mediainfo_output, file_name, file_size)
             
             # Create Telegraph page
-            title = f"MediaInfo - {file_name}"
-            telegraph_url = await create_telegraph_page(title, html_content)
+            telegraph_url = await create_telegraph_page(
+                title=f"MediaInfo: {file_name[:100]}", 
+                content=html_content
+            )
             
             if telegraph_url:
                 await status_msg.edit_text(
@@ -197,9 +231,8 @@ async def handle_mediainfo(client: Client, message: Message):
                 pass
 
     except Exception as e:
-        logger.error(f"Error in mediainfo handler: {e}")
+        logger.error(f"Error in mediainfo handler: {e}", exc_info=True)
         await message.reply_text("❌ An error occurred while processing the media info!")
-
 # Start the bot
 if __name__ == "__main__":
     print("Starting MediaInfo Bot...")
