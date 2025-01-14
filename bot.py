@@ -112,7 +112,7 @@ def parse_mediainfo(out: str, file_name: str, file_size: int) -> str:
     
     tc += '</pre><br>'
     html_parts.append(tc)
-    html_parts.append("<p><em>Note: Analysis is based on initial file chunks.</em></p>")
+    html_parts.append("<p><em>Note: Analysis is based on small chuncks of the files.</em></p>")
     
     return "\n".join(html_parts)
 
@@ -132,7 +132,7 @@ async def create_telegraph_page(title: str, content: str) -> str:
             logger.error(f"Invalid Telegraph response: {response}")
             return ""
             
-        url = f"https://telegra.ph/{response['path']}"
+        url = f"https://graph.org/{response['path']}"
         
         async with ClientSession() as session:
             async with session.get(url) as resp:
