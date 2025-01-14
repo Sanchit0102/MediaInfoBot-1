@@ -179,7 +179,7 @@ def get_media_from_message(message: Message) -> Optional[Union[Document, Video, 
 @app.on_message(filters.command(["start"]) & filters.private)
 async def start_command(client: Client, message: Message):
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("➕ Add me in your group", url=f"https://t.me/MetadataInfoBot?startgroup=botsync&admin=manage_chat"]
+        [InlineKeyboardButton("➕ Add me in your group", url=f"https://t.me/MetadataInfoBot?startgroup=botsync&admin=manage_chat")]
     ])
     await message.reply_text(
         f"👋 Hi {message.from_user.mention}!\n\n"
