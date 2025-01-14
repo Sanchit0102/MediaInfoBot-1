@@ -72,54 +72,55 @@ def format_size(size: int) -> str:
     return f"{size:.2f} PB"
 
 def parse_mediainfo(output: str, file_name: str, file_size: int) -> str:
-    """Parse mediainfo output into Telegraph-compatible HTML format."""
+    """Parse MediaInfo output into Telegraph-compatible aesthetic format."""
     
     def clean_value(value: str) -> str:
-        """Clean and escape HTML special characters."""
+        """Escape HTML special characters."""
         return value.replace('<', '&lt;').replace('>', '&gt;')
     
     html_parts = []
     
-    # File Information Header
+    # File Information Section
     html_parts.append("<h3>📁 File Information</h3>")
     html_parts.append(
-        f"<p><strong>File Name:</strong> {clean_value(file_name)}</p>"
-        f"<p><strong>Total Size:</strong> {format_size(file_size)}</p>"
+        f"<p><strong>File Name:</strong> <em>{clean_value(file_name)}</em></p>"
+        f"<p><strong>File Size:</strong> <em>{format_size(file_size)}</em></p>"
     )
+    html_parts.append("<hr>")  # Horizontal line for separation
     
     current_section = ""
-    section_table = []
+    section_lines = []
     
     for line in output.split('\n'):
         line = line.strip()
         if not line:
             continue
             
-        # Handle section headers
+        # Section Header
         if ':' not in line:
-            # Close the previous section's content
-            if section_table:
-                html_parts.append("".join(section_table))
-                section_table = []
+            if section_lines:
+                # Add the previous section's content
+                html_parts.append("<pre>" + "\n".join(section_lines) + "</pre>")
+                section_lines = []
             
-            # Add new section header
+            # New section header
             current_section = line
             emoji = SECTION_EMOJIS.get(current_section, '📝')
             html_parts.append(f"<h4>{emoji} {clean_value(current_section)}</h4>")
             continue
         
-        # Handle key-value pairs
+        # Key-Value Pair
         key, value = line.split(':', 1)
         key = clean_value(key.strip())
         value = clean_value(value.strip())
-        section_table.append(f"<p><strong>{key}:</strong> {value}</p>")
+        section_lines.append(f"{key:20}: {value}")
     
-    # Add the last section's content if exists
-    if section_table:
-        html_parts.append("".join(section_table))
+    # Add the last section's content
+    if section_lines:
+        html_parts.append("<pre>" + "\n".join(section_lines) + "</pre>")
     
-    # Add a footer note
-    html_parts.append("<p><em>Note: Analysis based on initial file chunks.</em></p>")
+    # Footer Note
+    html_parts.append("<p><em>Note: Analysis is based on initial file chunks.</em></p>")
     
     # Join all parts with proper spacing
     return "\n".join(html_parts)
