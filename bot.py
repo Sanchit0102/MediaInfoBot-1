@@ -107,9 +107,14 @@ def parse_mediainfo(mediainfo_output: str, file_name: str, file_size: int) -> st
         is_section_header = False
         for section, emoji in SECTION_ICONS.items():
             if line.startswith(section):
+                if line.startswith('Text'):
+                    line = line.replace('Text', 'Subtitle')
+                
                 if current_section:
+                    display_section = current_section.replace('Text', 'Subtitle') if current_section.startswith('Text') else current_section
+                    
                     html_parts.extend([
-                        f"<h4>{SECTION_ICONS.get(current_section, '📄')} {current_section}</h4>",
+                        f"<h4>{SECTION_ICONS.get(current_section, '📄')} {display_section}</h4>",
                         "<pre>",
                         "\n".join(section_content),
                         "</pre><br>"
@@ -123,8 +128,9 @@ def parse_mediainfo(mediainfo_output: str, file_name: str, file_size: int) -> st
             section_content.append(clean_value(line))
 
     if current_section and section_content:
+        display_section = current_section.replace('Text', 'Subtitle') if current_section.startswith('Text') else current_section
         html_parts.extend([
-            f"<h4>{SECTION_ICONS.get(current_section, '📄')} {current_section}</h4>",
+            f"<h4>{SECTION_ICONS.get(current_section, '📄')} {display_section}</h4>",
             "<pre>",
             "\n".join(section_content),
             "</pre><br>"
