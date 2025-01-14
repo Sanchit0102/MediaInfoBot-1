@@ -162,7 +162,7 @@ async def handle_mediainfo(client: Client, message: Message):
     try:
         replied = message.reply_to_message
         
-        if not replied or not (replied.document or replied.video or replied.audio or replied.photo):
+        if not replied or not (replied.document or replied.video or replied.audio):
             await message.reply_text(
                 "__Please reply to a media file with /mediainfo or /mi__"
             )
@@ -171,7 +171,7 @@ async def handle_mediainfo(client: Client, message: Message):
         status_msg = await message.reply_text("⏳ __Processing media info...__")
         
         # Get media information
-        media = replied.document or replied.video or replied.audio or replied.photo
+        media = replied.document or replied.video or replied.audio
         file_name = getattr(media, 'file_name', 'Unknown')
         file_size = getattr(media, 'file_size', 0)
 
