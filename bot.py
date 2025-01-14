@@ -3,9 +3,10 @@ from pyrogram.types import Message
 from telegraph.aio import Telegraph
 from aiohttp import ClientSession
 import os, asyncio, logging
-from typing import Optional, Union
-from datetime import datetime
+from typing import Optional
 import aiofiles, tempfile
+from flask import Flask
+from threading import Thread
 
 logging.basicConfig(
     level=logging.INFO,
@@ -149,6 +150,12 @@ async def create_telegraph_page(title: str, content: str) -> str:
         logger.error(f"Error creating Telegraph page: {e}", exc_info=True)
         return ""
 
+@app.on_message(filters.command("start") & filters.private)
+async def handel_start(client: Client, message: Message):
+    await message.reply(
+        f"__Hi, {message.from_user.mention}\nI can generate media info about your files. Just reply /mi or /mediainfo to a media files.__"
+    )
+
 @app.on_message(filters.command(["mediainfo", "mi"]))
 async def handle_mediainfo(client: Client, message: Message):
     """Handle the mediainfo command."""
@@ -210,7 +217,16 @@ async def handle_mediainfo(client: Client, message: Message):
         logger.error(f"Error in mediainfo handler: {e}", exc_info=True)
         await message.reply_text("❌ __An error occurred while processing the media info!__")
 
+web = Flask(__name__)
+
+@web.route('/')
+def index():
+    return "Bot is running!"
+
+def run():
+    web.run(host="0.0.0.0", port=int(os.environ.get('PORT', 8080)))
 
 if __name__ == "__main__":
     print("Starting MediaInfo Bot...")
+    Thread(target=run).start()
     app.run()
