@@ -3,33 +3,26 @@ from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import MessageNotModified
 from telegraph.aio import Telegraph
 from aiohttp import ClientSession
-import os
-import asyncio
-import logging
 from typing import Optional, Union, Tuple
-import aiofiles
-import tempfile
+import aiofiles, tempfile 
 from flask import Flask
 from threading import Thread
+import os, asyncio, logging
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# Environment variables
 API_ID = os.getenv("API_ID")
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 TELEGRAPH_TOKEN = os.getenv("TELEGRAPH_TOKEN")
 
-# Initialize clients
 app = Client("MediaInfoBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 telegraph = Telegraph(TELEGRAPH_TOKEN)
 
-# Media processing functions
 async def stream_media(message: Message, temp_path: str, limit: int = 5) -> Optional[str]:
     """Stream media in chunks and save required portion for analysis."""
     try:
@@ -66,7 +59,6 @@ async def get_mediainfo(file_path: str) -> str:
         logger.error(f"Error getting mediainfo: {e}")
         return ""
 
-# Formatting functions
 def format_size(size: int) -> str:
     """Format file size in human-readable format."""
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
