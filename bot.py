@@ -18,13 +18,11 @@ API_ID = os.getenv("API_ID")
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 TELEGRAPH_TOKEN = os.getenv("TELEGRAPH_TOKEN")
-CHUNK_SIZE = 2 * 1024 * 1024  # 5MB chunks
-MAX_CHUNKS = 2  # Maximum number of chunks to analyze
 
 app = Client("MediaInfoBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 telegraph = Telegraph(TELEGRAPH_TOKEN)
 
-async def stream_media(message: Message, temp_path: str) -> Optional[str]:
+async def stream_media(message: Message, temp_path: str, limit: int) -> Optional[str]:
     """Stream media in chunks and save only required portion for analysis."""
     try:
         media = message.document or message.video or message.audio
@@ -33,10 +31,10 @@ async def stream_media(message: Message, temp_path: str) -> Optional[str]:
 
         async with aiofiles.open(temp_path, 'wb') as file:
             downloaded_chunks = 0
-            async for chunk in app.stream_media(media, limit=MAX_CHUNKS):
+            async for chunk in app.stream_media(media, limit=limit):
                 await file.write(chunk)
                 downloaded_chunks += 1
-                if downloaded_chunks >= MAX_CHUNKS:
+                if downloaded_chunks >= limit:
                     break
         
         return temp_path
@@ -174,7 +172,7 @@ async def handle_mediainfo(client: Client, message: Message):
             temp_path = temp_file.name
 
         try:
-            downloaded_path = await stream_media(replied, temp_path)
+            downloaded_path = await stream_media(replied, temp_path, 5)
             if not downloaded_path:
                 await status_msg.edit_text("❌ __Failed to stream media!__")
                 return
