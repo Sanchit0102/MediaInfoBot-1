@@ -145,8 +145,8 @@ async def create_telegraph_page(title: str, content: str) -> str:
         response = await telegraph.create_page(
             title=clean_title,
             html_content=content,
-            author_name="MediaInfo Bot",
-            author_url="https://t.me/your_bot_username"  # Replace with your bot's username
+            author_name="MetadataInfoBot",
+            author_url="https://t.me/MetadataInfoBot"
         )
         
         # Verify response
