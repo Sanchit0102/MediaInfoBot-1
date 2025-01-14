@@ -155,16 +155,16 @@ async def handle_mediainfo(client: Client, message: Message):
     try:
         replied = message.reply_to_message
         
-        if not replied or not (replied.document or replied.video or replied.audio):
+        if not replied or not (replied.document or replied.video or replied.audio or replied.photo):
             await message.reply_text(
-                "Please reply to a media file (document/video/audio) with /mediainfo or /mi"
+                "__Please reply to a media file with /mediainfo or /mi__"
             )
             return
 
-        status_msg = await message.reply_text("⏳ Processing media info...")
+        status_msg = await message.reply_text("⏳ __Processing media info...__")
         
         # Get media information
-        media = replied.document or replied.video or replied.audio
+        media = replied.document or replied.video or replied.audio or replied.photo
         file_name = getattr(media, 'file_name', 'Unknown')
         file_size = getattr(media, 'file_size', 0)
 
@@ -174,12 +174,12 @@ async def handle_mediainfo(client: Client, message: Message):
         try:
             downloaded_path = await stream_media(replied, temp_path)
             if not downloaded_path:
-                await status_msg.edit_text("❌ Failed to stream media!")
+                await status_msg.edit_text("❌ __Failed to stream media!__")
                 return
 
             mediainfo_output = await get_mediainfo(downloaded_path)
             if not mediainfo_output:
-                await status_msg.edit_text("❌ Failed to get media information!")
+                await status_msg.edit_text("❌ __Failed to get media information!__")
                 return
 
             html_content = parse_mediainfo(mediainfo_output, file_name, file_size)
@@ -198,7 +198,7 @@ async def handle_mediainfo(client: Client, message: Message):
                     disable_web_page_preview=False
                 )
             else:
-                await status_msg.edit_text("❌ Failed to create Telegraph page!")
+                await status_msg.edit_text("❌ __Failed to create Telegraph page!__")
 
         finally:
             try:
@@ -208,7 +208,7 @@ async def handle_mediainfo(client: Client, message: Message):
 
     except Exception as e:
         logger.error(f"Error in mediainfo handler: {e}", exc_info=True)
-        await message.reply_text("❌ An error occurred while processing the media info!")
+        await message.reply_text("❌ __An error occurred while processing the media info!__")
 
 
 if __name__ == "__main__":
