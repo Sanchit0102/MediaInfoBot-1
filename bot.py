@@ -201,9 +201,9 @@ async def process_media(message: Message) -> None:
 
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             temp_path = temp_file.name
-
+            
+        status_msg = await message.reply_text("⏳ __Processing media info...__")
         try:
-            status_msg = await message.reply_text("⏳ __Processing media info...__")
             downloaded_path = await stream_media(message, temp_path)
             if not downloaded_path:
                 await status_message.edit_text("❌ __Failed to download media sample!__")
