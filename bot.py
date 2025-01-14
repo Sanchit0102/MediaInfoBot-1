@@ -23,7 +23,7 @@ TELEGRAPH_TOKEN = os.getenv("TELEGRAPH_TOKEN")
 app = Client("MediaInfoBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 telegraph = Telegraph(TELEGRAPH_TOKEN)
 
-async def stream_media(message: Message, temp_path: str, limit: int = 0.1) -> Optional[str]:
+async def stream_media(message: Message, temp_path: str, limit: int = 1) -> Optional[str]:
     """Stream media in chunks and save required portion for analysis."""
     try:
         media = message.document or message.video or message.audio
