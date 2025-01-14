@@ -18,7 +18,7 @@ API_ID = os.getenv("API_ID")
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 TELEGRAPH_TOKEN = os.getenv("TELEGRAPH_TOKEN")
-CHUNK_SIZE = 5 * 1024 * 1024  # 5MB chunks
+CHUNK_SIZE = 2 * 1024 * 1024  # 5MB chunks
 MAX_CHUNKS = 2  # Maximum number of chunks to analyze
 
 app = Client("MediaInfoBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
