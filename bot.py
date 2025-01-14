@@ -168,7 +168,7 @@ async def create_telegraph_page(title: str, content: str) -> Optional[str]:
         logger.error(f"Error creating Telegraph page: {e}", exc_info=True)
         return None
 
-def get_media_from_message(message: Message) -> Optional[Union[Document, Video, Audio]]:
+def get_media_from_message(message: Message):
     if message.reply_to_message:
         return (message.reply_to_message.document or message.reply_to_message.video or message.reply_to_message.audio)
     return message.document or message.video or message.audio
