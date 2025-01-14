@@ -186,7 +186,7 @@ async def start_command(client: Client, message: Message):
         reply_markup=keyboard
     )
 
-async def process_media(message: Message, status_message: Message) -> None:
+async def process_media(message: Message) -> None:
     """Process media file and generate media info."""
     try:
         media = get_media_from_message(message)
@@ -203,9 +203,7 @@ async def process_media(message: Message, status_message: Message) -> None:
             temp_path = temp_file.name
 
         try:
-            # Update status
-            await status_message.edit_text("📥 __Downloading sample chunks...__")
-            
+            status_msg = await message.reply_text("⏳ __Processing media info...__")
             downloaded_path = await stream_media(message, temp_path)
             if not downloaded_path:
                 await status_message.edit_text("❌ __Failed to download media sample!__")
@@ -235,8 +233,9 @@ async def process_media(message: Message, status_message: Message) -> None:
                     f"📊 **Media Information**\n\n"
                     f"📁 **File:** `{file_name}`\n"
                     f"💾 **Size:** `{format_size(file_size)}`\n\n"
-                    f"👉 Click the button below for detailed technical information.",
-                    reply_markup=report_keyboard
+                    f"👉 **Detailed info:** {telegraph_url}",
+                    reply_markup=report_keyboard,
+                    disable_web_page_preview=False
                 )
             else:
                 await status_message.edit_text("❌ __Failed to generate report!__")
@@ -265,15 +264,11 @@ async def mediainfo_command(client: Client, message: Message):
             "❌ __Please reply to a media file with /mediainfo or /mi__"
         )
         return
-    
-    status_msg = await message.reply_text("⏳ __Processing media info...__")
-    await process_media(message.reply_to_message, status_msg)
+    await process_media(message.reply_to_message)
 
 @app.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def media_handler(client: Client, message: Message):
-    """Handle media files sent directly to the bot."""
-    status_msg = await message.reply_text("⏳ __Processing media info...__")
-    await process_media(message, status_msg)
+    await process_media(message)
 
 # Web server
 web = Flask(__name__)
