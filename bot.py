@@ -152,10 +152,6 @@ async def handel_start(client: Client, message: Message):
 @app.on_message(filters.command(["mediainfo", "mi"]))
 async def handle_mediainfo(client: Client, message: Message):
     try:
-        replied = message.reply_to_message
-        if not replied or not (replied.document or replied.video or replied.audio):
-            return await message.reply_text("__Please reply to a media file with /mediainfo or /mi__")
-            
         await handle_media(client, message)
     except Exception as e:
         logger.error(f"{e}")
@@ -167,10 +163,14 @@ async def mediainfohandler(client, message):
 async def handle_media(client, message):
     """Automatically fetch and respond with media info when media is sent in private chat."""
     try:
-        # Only respond if media is sent (document/video/audio)
-        media = message.document or message.video or message.audio
+        replied = message.reply_to_message
+        media = replied.document or replied.video or replied.audio
+        
+        if not replied or not (replied.document or replied.video or replied.audio):
+            media = message.document or message.video or message.audio
+            
         if not media:
-            return await message.reply("❌__No media found__")
+            return await message.reply_text("__Please reply to a media file with /mediainfo or /mi__")
 
         # Inform the user that the bot is processing the media
         status_msg = await message.reply_text("⏳ __Processing media info...__")
