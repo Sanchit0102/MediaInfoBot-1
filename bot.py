@@ -72,7 +72,7 @@ def format_size(size: int) -> str:
     return f"{size:.2f} PB"
 
 def parse_mediainfo(output: str, file_name: str, file_size: int) -> str:
-    """Parse mediainfo output into Telegraph-compatible HTML format with improved aesthetics."""
+    """Parse mediainfo output into Telegraph-compatible HTML format."""
     
     def clean_value(value: str) -> str:
         """Clean and escape HTML special characters."""
@@ -80,16 +80,11 @@ def parse_mediainfo(output: str, file_name: str, file_size: int) -> str:
     
     html_parts = []
     
-    # File Information Header with a table
+    # File Information Header
+    html_parts.append("<h3>📁 File Information</h3>")
     html_parts.append(
-        '<div style="font-family: Arial, sans-serif; padding: 10px; background-color: #f4f4f4; border-radius: 10px;">'
-    )
-    html_parts.append("<h3 style='text-align: center;'>📁 File Information</h3>")
-    html_parts.append(
-        f"<table style='width: 100%; border-collapse: collapse;'>"
-        f"<tr><td style='padding: 8px;'><b>File Name</b></td><td style='padding: 8px;'>{clean_value(file_name)}</td></tr>"
-        f"<tr><td style='padding: 8px;'><b>Total Size</b></td><td style='padding: 8px;'>{format_size(file_size)}</td></tr>"
-        f"</table><br/>"
+        f"<p><strong>File Name:</strong> {clean_value(file_name)}</p>"
+        f"<p><strong>Total Size:</strong> {format_size(file_size)}</p>"
     )
     
     current_section = ""
@@ -102,41 +97,29 @@ def parse_mediainfo(output: str, file_name: str, file_size: int) -> str:
             
         # Handle section headers
         if ':' not in line:
-            # Close the previous section's table
+            # Close the previous section's content
             if section_table:
-                html_parts.append(
-                    "<table style='width: 100%; border-collapse: collapse; margin-bottom: 10px;'>"
-                    + "".join(section_table)
-                    + "</table>"
-                )
+                html_parts.append("".join(section_table))
                 section_table = []
             
             # Add new section header
             current_section = line
             emoji = SECTION_EMOJIS.get(current_section, '📝')
-            html_parts.append(f"<h4 style='margin-top: 20px; color: #007BFF;'>{emoji} {clean_value(current_section)}</h4>")
+            html_parts.append(f"<h4>{emoji} {clean_value(current_section)}</h4>")
             continue
         
         # Handle key-value pairs
         key, value = line.split(':', 1)
         key = clean_value(key.strip())
         value = clean_value(value.strip())
-        section_table.append(
-            f"<tr><td style='padding: 8px; border: 1px solid #ddd;'><b>{key}</b></td>"
-            f"<td style='padding: 8px; border: 1px solid #ddd;'>{value}</td></tr>"
-        )
+        section_table.append(f"<p><strong>{key}:</strong> {value}</p>")
     
-    # Add the last section's table if exists
+    # Add the last section's content if exists
     if section_table:
-        html_parts.append(
-            "<table style='width: 100%; border-collapse: collapse; margin-bottom: 10px;'>"
-            + "".join(section_table)
-            + "</table>"
-        )
+        html_parts.append("".join(section_table))
     
     # Add a footer note
-    html_parts.append("<p style='font-size: 12px; color: gray; text-align: center;'>Note: Analysis based on initial file chunks</p>")
-    html_parts.append("</div>")
+    html_parts.append("<p><em>Note: Analysis based on initial file chunks.</em></p>")
     
     # Join all parts with proper spacing
     return "\n".join(html_parts)
