@@ -186,8 +186,8 @@ async def start_command(client: Client, message: Message):
         reply_markup=keyboard
     )
 
-async def process_media(message: Message) -> None:
-    """Process media file and generate media info."""
+async def process_media(message: Message):
+    status_msg = await message.reply_text("⏳ __Processing media info...__")
     try:
         media = get_media_from_message(message)
         if not media:
@@ -202,7 +202,6 @@ async def process_media(message: Message) -> None:
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             temp_path = temp_file.name
             
-        status_msg = await message.reply_text("⏳ __Processing media info...__")
         try:
             downloaded_path = await stream_media(message, temp_path)
             if not downloaded_path:
