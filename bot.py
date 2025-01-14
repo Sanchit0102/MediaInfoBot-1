@@ -116,7 +116,7 @@ SECTION_EMOJIS = {
     'General': '📄',
     'Video': '🎥',
     'Audio': '🔊',
-    'Subtitles': '💬',
+    'Subtitle': '💬',
     'Format': '📦',
     'Chapters': '📑'
 }
