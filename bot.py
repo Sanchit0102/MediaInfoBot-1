@@ -161,7 +161,7 @@ async def handle_mediainfo(client: Client, message: Message):
         logger.error(f"{e}")
 
 @app.on_message(filters.private & (filters.document | filters.video | filters.audio))
-async def mediainfohandler(client, message)
+async def mediainfohandler(client, message):
     await handle_media(client, message)
 
 async def handle_media(client, message):
