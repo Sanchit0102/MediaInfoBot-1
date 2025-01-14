@@ -211,7 +211,7 @@ async def process_media(message: Message):
             
             html_content = parse_mediainfo(mediainfo_output, file_name, file_size)
             telegraph_url = await create_telegraph_page(
-                title=f"Media Info: {file_name[:50]}",
+                title=f"Media Info",
                 content=html_content
             )
             
