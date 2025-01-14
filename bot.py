@@ -209,7 +209,7 @@ async def handle_mediainfo(client: Client, message: Message):
             
             # Create Telegraph page
             telegraph_url = await create_telegraph_page(
-                title=f"MediaInfo: {file_name[:100]}", 
+                title=f"MetaDataInfo", 
                 content=html_content
             )
             
