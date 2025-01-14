@@ -179,7 +179,7 @@ async def start_command(client: Client, message: Message):
     )
 
 async def process_media(message: Message):
-    status_msg = await message.reply_text("⏳ __Processing media info...__")
+    status_message = await message.reply_text("⏳ __Processing media info...__")
     try:
         media = get_media_from_message(message)
         if not media:
