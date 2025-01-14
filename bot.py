@@ -66,7 +66,15 @@ def format_size(size: int) -> str:
         size /= 1024
     return f"{size:.2f} PB"
 
-def parse_mediainfo(output: str, file_name: str, file_size: int) -> str:
+section_dict = {
+    'General': '🗒',
+    'Video': '🎞',
+    'Audio': '🔊',
+    'Text': '🔠',
+    'Menu': '🗃'
+}
+
+def parse_mediainfo(out: str, file_name: str, file_size: int) -> str:
     """Parse MediaInfo output into Telegraph-compatible aesthetic format."""
     
     def clean_value(value: str) -> str:
@@ -74,7 +82,6 @@ def parse_mediainfo(output: str, file_name: str, file_size: int) -> str:
         return value.replace('<', '&lt;').replace('>', '&gt;')
     
     html_parts = []
-    
     html_parts.append("<h3>📁 File Information</h3>")
     html_parts.append(
         f"<p><strong>File Name:</strong> <em>{clean_value(file_name)}</em></p>"
@@ -82,44 +89,32 @@ def parse_mediainfo(output: str, file_name: str, file_size: int) -> str:
     )
     html_parts.append("<hr>")
     
-    current_section = ""
-    section_lines = []
-    
-    for line in output.split('\n'):
+    tc = ''
+    trigger = False
+    for line in out.split('\n'):
         line = line.strip()
         if not line:
             continue
-            
-        if ':' not in line:
-            if section_lines:
-                html_parts.append("<pre>" + "\n".join(section_lines) + "</pre>")
-                section_lines = []
-            
-            current_section = line
-            emoji = SECTION_EMOJIS.get(current_section, '📝')
-            html_parts.append(f"<h4>{emoji} {clean_value(current_section)}</h4>")
-            continue
-        
-        key, value = line.split(':', 1)
-        key = clean_value(key.strip())
-        value = clean_value(value.strip())
-        section_lines.append(f"{key:20}: {value}")
+
+        for section, emoji in section_dict.items():
+            if line.startswith(section):
+                trigger = True
+                if not line.startswith('General'):
+                    tc += '</pre><br>'
+                tc += f"<h4>{emoji} {line.replace('Text', 'Subtitle')}</h4>"
+                break
+
+        if trigger:
+            tc += '<br><pre>'
+            trigger = False
+        else:
+            tc += clean_value(line) + '\n'
     
-    if section_lines:
-        html_parts.append("<pre>" + "\n".join(section_lines) + "</pre>")
-    
+    tc += '</pre><br>'
+    html_parts.append(tc)
     html_parts.append("<p><em>Note: Analysis is based on initial file chunks.</em></p>")
     
     return "\n".join(html_parts)
-    
-SECTION_EMOJIS = {
-    'General': '📄',
-    'Video': '🎥',
-    'Audio': '🔊',
-    'Subtitle': '💬',
-    'Format': '📦',
-    'Chapters': '📑'
-}
 
 async def create_telegraph_page(title: str, content: str) -> str:
     """Create a Telegraph page with the media info with error handling."""
