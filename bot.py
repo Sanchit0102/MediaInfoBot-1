@@ -169,13 +169,10 @@ async def create_telegraph_page(title: str, content: str) -> Optional[str]:
         return None
 
 def get_media_from_message(message: Message) -> Optional[Union[Document, Video, Audio]]:
-    """Extract media from message or reply."""
     if message.reply_to_message:
-        return (message.reply_to_message.media or 
-                message.reply_to_message.video or 
-                message.reply_to_message.audio)
-    return message.media or message.video or message.audio
-
+        return (message.reply_to_message.document or message.reply_to_message.video or message.reply_to_message.audio)
+    return message.document or message.video or message.audio
+    
 @app.on_message(filters.command(["start"]) & filters.private)
 async def start_command(client: Client, message: Message):
     keyboard = InlineKeyboardMarkup([
