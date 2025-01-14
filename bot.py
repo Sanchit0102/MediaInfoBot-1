@@ -151,20 +151,30 @@ async def handel_start(client: Client, message: Message):
 
 @app.on_message(filters.command(["mediainfo", "mi"]))
 async def handle_mediainfo(client: Client, message: Message):
-    """Handle the mediainfo command."""
     try:
         replied = message.reply_to_message
-        
         if not replied or not (replied.document or replied.video or replied.audio):
-            await message.reply_text(
-                "__Please reply to a media file with /mediainfo or /mi__"
-            )
-            return
+            return await message.reply_text("__Please reply to a media file with /mediainfo or /mi__")
+            
+        await handle_media(client, message)
+    except Exception as e:
+        logger.error(f"{e}")
 
+@app.on_message(filters.private & (filters.document | filters.video | filters.audio))
+async def mediainfohandler(client, message)
+    await handle_media(client, message)
+
+async def handle_media(client, message):
+    """Automatically fetch and respond with media info when media is sent in private chat."""
+    try:
+        # Only respond if media is sent (document/video/audio)
+        media = message.document or message.video or message.audio
+        if not media:
+            return await message.reply("❌__No media found__")
+
+        # Inform the user that the bot is processing the media
         status_msg = await message.reply_text("⏳ __Processing media info...__")
-        
-        # Get media information
-        media = replied.document or replied.video or replied.audio
+
         file_name = getattr(media, 'file_name', 'Unknown')
         file_size = getattr(media, 'file_size', 0)
 
@@ -172,7 +182,7 @@ async def handle_mediainfo(client: Client, message: Message):
             temp_path = temp_file.name
 
         try:
-            downloaded_path = await stream_media(replied, temp_path, 5)
+            downloaded_path = await stream_media(message, temp_path, limit=5)
             if not downloaded_path:
                 await status_msg.edit_text("❌ __Failed to stream media!__")
                 return
@@ -207,8 +217,9 @@ async def handle_mediainfo(client: Client, message: Message):
                 pass
 
     except Exception as e:
-        logger.error(f"Error in mediainfo handler: {e}", exc_info=True)
+        logger.error(f"Error handling media: {e}", exc_info=True)
         await message.reply_text("❌ __An error occurred while processing the media info!__")
+
 
 web = Flask(__name__)
 
