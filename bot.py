@@ -76,15 +76,12 @@ SECTION_ICONS = {
     'Menu': '🗃'
 }
 
-def parse_mediainfo(mediainfo_output: str, file_name: str, file_size: int) -> str:
-    """Parse MediaInfo output into Telegraph-compatible format."""
+def parse_mediainfo(mediainfo_output, file_name, file_size):
     def clean_value(value: str) -> str:
         return value.replace('<', '&lt;').replace('>', '&gt;')
 
     html_parts = [
-        "<h3>📁 File Information</h3>",
-        f"<p><strong>File Name:</strong> <em>{clean_value(file_name)}</em></p>",
-        f"<p><strong>File Size:</strong> <em>{format_size(file_size)}</em></p>",
+        "<h3>📁 Media Information</h3>",
         "<hr>"
     ]
 
@@ -117,6 +114,10 @@ def parse_mediainfo(mediainfo_output: str, file_name: str, file_size: int) -> st
                 break
 
         if not is_section_header and current_section:
+            if current_section == 'General' and line.lower().startswith('file size'):
+                line = f"File size                                : {format_size(file_size)}"
+            elif current_section == 'General' and line.lower().startswith('complete name'):
+                line = line.replace('/tmp/', '')
             section_content.append(clean_value(line))
 
     if current_section and section_content:
@@ -127,8 +128,6 @@ def parse_mediainfo(mediainfo_output: str, file_name: str, file_size: int) -> st
             "\n".join(section_content),
             "</pre><br>"
         ])
-
-    html_parts.append("<p><em>Note: Analysis is based on initial portions of the file.</em></p>")
     return "\n".join(html_parts)
 
 async def create_telegraph_page(title: str, content: str) -> Optional[str]:
