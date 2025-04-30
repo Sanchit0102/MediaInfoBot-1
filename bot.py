@@ -1,13 +1,11 @@
-from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from pyrogram.errors import MessageNotModified
-from telegraph.aio import Telegraph
-from aiohttp import ClientSession
-from typing import Optional, Union, Tuple
-import aiofiles, tempfile 
+import os, tempfile, asyncio, logging, random, aiofiles
 from flask import Flask
 from threading import Thread
-import os, asyncio, logging
+from typing import Optional
+from aiohttp import ClientSession
+from pyrogram import Client, filters
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from telegraph import Telegraph
 
 logging.basicConfig(
     level=logging.INFO,
@@ -15,18 +13,45 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-API_ID = os.getenv("API_ID")
-API_HASH = os.getenv("API_HASH")
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-TELEGRAPH_TOKEN = os.getenv("TELEGRAPH_TOKEN")
+API_ID = int(os.getenv("API_ID", ""))
+API_HASH = os.getenv("API_HASH", "")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+BOT_USERNAME = os.getenv("BOT_USERNAME", "")  
+TELEGRAPH_TOKEN = os.getenv("TELEGRAPH_TOKEN", "")
+STICKER_IDS = [
+    "CAACAgQAAxkBAAKpqGgDgmEUfgP3n3BsMRAAAUsfyzxtdQACgRMAAt_I2VOKmTHOdbqtTTYE",
+    "CAACAgUAAxkBAAKpq2gDjL_pGv-euHoP87mcWoalg6hiAALbCQACMzPIVBhRZzYtsaNuNgQ",
+    "CAACAgUAAxkBAAKprmgDjMhi6AxC-_M4BIXK2wqMIjPUAALiBwACZwfhVF2R5eOSSs8fNgQ",
+    "CAACAgQAAxkBAAKpsWgDjXLdIgajLgyQ2WGzhHkC8qKPAAIjAANfxgEZuU3oSvXYYOQ2BA",
+    "CAACAgQAAxkBAAKptGgDjY4zBWGV4ZNuPvFNk1RPoEWFAAJrFAACWt0RU4kMbdwhm5YvNgQ"
+]
 
 app = Client("MediaInfoBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-telegraph = Telegraph(TELEGRAPH_TOKEN)
+telegraph = Telegraph()
+telegraph.create_account(short_name="DSBot")
+
+SECTION_ICONS = {
+    "General": "📄",
+    "Video": "🎞️",
+    "Audio": "🎵",
+    "Text": "🔤",
+    "Image": "🖼️",
+    "Menu": "📋"
+}
+
+def format_size(size: int) -> str:
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size < 1024:
+            return f"{size:.2f} {unit}"
+        size /= 1024
+    return f"{size:.2f} PB"
+
+def get_media_from_message(message: Message):
+    return message.document or message.video or message.audio
 
 async def stream_media(message: Message, temp_path: str, limit: int = 1) -> Optional[str]:
-    """Stream media in chunks and save required portion for analysis."""
     try:
-        media = message.document or message.video or message.audio
+        media = get_media_from_message(message)
         if not media:
             return None
 
@@ -37,14 +62,12 @@ async def stream_media(message: Message, temp_path: str, limit: int = 1) -> Opti
                 downloaded_chunks += 1
                 if downloaded_chunks >= limit:
                     break
-        
         return temp_path
     except Exception as e:
         logger.error(f"Error streaming media: {e}")
         return None
 
 async def get_mediainfo(file_path: str) -> str:
-    """Get mediainfo output for the file."""
     try:
         process = await asyncio.create_subprocess_exec(
             'mediainfo', file_path,
@@ -59,208 +82,156 @@ async def get_mediainfo(file_path: str) -> str:
         logger.error(f"Error getting mediainfo: {e}")
         return ""
 
-def format_size(size: int) -> str:
-    """Format file size in human-readable format."""
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if size < 1024:
-            return f"{size:.2f} {unit}"
-        size /= 1024
-    return f"{size:.2f} PB"
-
-SECTION_ICONS = {
-    'General': '🗒',
-    'Video': '🎞',
-    'Audio': '🔊',
-    'Text': '🔠',
-    'Subtitle': '🔠',
-    'Menu': '🗃'
-}
-
 def parse_mediainfo(mediainfo_output, file_name, file_size):
-    def clean_value(value: str) -> str:
+    def clean(value: str) -> str:
         return value.replace('<', '&lt;').replace('>', '&gt;')
 
-    html_parts = [
-        "<h3>📁 Media Information</h3>",
-        "<hr>"
-    ]
-
+    html = ["<h3>📁 Media Information</h3>", "<hr>"]
     current_section = ""
-    section_content = []
+    content = []
 
-    for line in mediainfo_output.split('\n'):
+    for line in mediainfo_output.splitlines():
         line = line.strip()
         if not line:
             continue
-
-        is_section_header = False
-        for section, emoji in SECTION_ICONS.items():
-            if line.startswith(section):
-                if line.startswith('Text'):
-                    line = line.replace('Text', 'Subtitle')
-                
-                if current_section:
-                    display_section = current_section.replace('Text', 'Subtitle') if current_section.startswith('Text') else current_section
-                    
-                    html_parts.extend([
-                        f"<h4>{SECTION_ICONS.get(current_section, '📄')} {display_section}</h4>",
-                        "<pre>",
-                        "\n".join(section_content),
-                        "</pre><br>"
-                    ])
-                current_section = line
-                section_content = []
-                is_section_header = True
-                break
-
-        if not is_section_header and current_section:
-            if current_section == 'General' and line.lower().startswith('file size'):
+        if any(line.startswith(section) for section in SECTION_ICONS):
+            if current_section and content:
+                content_str = "\n".join(content)
+                icon = SECTION_ICONS.get(current_section, "📄")
+                html.append(f"<h4>{icon} {current_section}</h4><pre>{content_str}</pre><br>")
+            current_section = line
+            content = []
+        else:
+            if current_section == "General" and line.lower().startswith("file size"):
                 line = f"File size                                : {format_size(file_size)}"
-            elif current_section == 'General' and line.lower().startswith('complete name'):
-                line = line.replace('/tmp/', '')
-            section_content.append(clean_value(line))
+            content.append(clean(line))
 
-    if current_section and section_content:
-        display_section = current_section.replace('Text', 'Subtitle') if current_section.startswith('Text') else current_section
-        html_parts.extend([
-            f"<h4>{SECTION_ICONS.get(current_section, '📄')} {display_section}</h4>",
-            "<pre>",
-            "\n".join(section_content),
-            "</pre><br>"
-        ])
-    return "\n".join(html_parts)
+    if current_section and content:
+        content_str = "\n".join(content)
+        icon = SECTION_ICONS.get(current_section, "📄")
+        html.append(f"<h4>{icon} {current_section}</h4><pre>{content_str}</pre><br>")
+
+    return "\n".join(html)
 
 async def create_telegraph_page(title: str, content: str) -> Optional[str]:
-    """Create a Telegraph page with media info and verify its accessibility."""
     try:
         clean_title = title[:128]
-        
-        response = await telegraph.create_page(
+        response = telegraph.create_page(
             title=clean_title,
             html_content=content,
-            author_name="MetadataInfoBot",
-            author_url="https://t.me/MetadataInfoBot"
+            author_name="DS MEDIA INFO BOT",
+            author_url="https://t.me/DS_Mediainfo_Bot"
         )
-        
-        if not response or 'path' not in response:
-            logger.error(f"Invalid Telegraph response: {response}")
-            return None
-            
         url = f"https://graph.org/{response['path']}"
-        
         async with ClientSession() as session:
             async with session.get(url) as resp:
                 if resp.status != 200:
                     logger.error(f"Created page not accessible: {resp.status}")
                     return None
-        
         return url
     except Exception as e:
         logger.error(f"Error creating Telegraph page: {e}", exc_info=True)
         return None
 
-def get_media_from_message(message: Message):
-    if message.reply_to_message:
-        return (message.reply_to_message.document or message.reply_to_message.video or message.reply_to_message.audio)
-    return message.document or message.video or message.audio
-    
-@app.on_message(filters.command(["start"]) & filters.private)
-async def start_command(client: Client, message: Message):
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("➕ Add me in your group", url=f"https://t.me/MetadataInfoBot?startgroup=botsync&admin=manage_chat")]
-    ])
-    await message.reply_text(
-        f"👋 Hi {message.from_user.mention}!\n\n"
-        "I can analyze media files and provide detailed information.\n\n"
-        "🔹 Send me any media file\n"
-        "🔹 Or reply to a media with /mediainfo or /mi\n",
-        reply_markup=keyboard
-    )
+@app.on_message(filters.channel & (filters.video | filters.document | filters.audio))
+async def on_channel_media(client: Client, message: Message):
+    media = get_media_from_message(message)
+    if not media:
+        return
 
-async def process_media(message: Message):
-    status_message = await message.reply_text("⏳ __Processing media info...__")
+    file_name = getattr(media, 'file_name', 'Unknown')
+    file_size = getattr(media, 'file_size', 0)
+
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_path = temp_file.name
+
     try:
-        media = get_media_from_message(message)
-        if not media:
-            await status_message.edit_text(
-                "❌ __Please send a media file or reply to one with /mediainfo__"
-            )
+        downloaded_path = await stream_media(message, temp_path)
+        if not downloaded_path:
             return
 
-        file_name = getattr(media, 'file_name', 'Unknown')
-        file_size = getattr(media, 'file_size', 0)
+        mediainfo_output = await get_mediainfo(downloaded_path)
+        html_content = parse_mediainfo(mediainfo_output, file_name, file_size)
 
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            temp_path = temp_file.name
-            
-        try:
-            downloaded_path = await stream_media(message, temp_path)
-            if not downloaded_path:
-                await status_message.edit_text("❌ __Failed to download media sample!__")
-                return
+        telegraph_url = await create_telegraph_page(
+            title=f"{file_name} - Media Info",
+            content=html_content
+        )
 
-            await status_message.edit_text("🔍 __Analyzing media info...__")
-            
-            mediainfo_output = await get_mediainfo(downloaded_path)
-            if not mediainfo_output:
-                await status_message.edit_text("❌ __Failed to analyze media!__")
-                return
-
-            await status_message.edit_text("📝 __Generating report...__")
-            
-            html_content = parse_mediainfo(mediainfo_output, file_name, file_size)
-            telegraph_url = await create_telegraph_page(
-                title=f"Media Info",
-                content=html_content
+        if telegraph_url:
+            button = InlineKeyboardMarkup([
+                [InlineKeyboardButton("📋 View Media Info", url=telegraph_url)]
+            ])
+            await client.edit_message_reply_markup(
+                chat_id=message.chat.id,
+                message_id=message.id,
+                reply_markup=button
             )
-            
-            if telegraph_url:
-                report_keyboard = InlineKeyboardMarkup([[
-                    InlineKeyboardButton("📋 Detailed Report", url=telegraph_url)
-                ]])
-                
-                await status_message.edit_text(
-                    f"📊 **Media Information**\n\n"
-                    f"📁 **File:** `{file_name}`\n"
-                    f"💾 **Size:** `{format_size(file_size)}`\n\n"
-                    f"👉 **Detailed info:** {telegraph_url}",
-                    reply_markup=report_keyboard,
-                    disable_web_page_preview=False
-                )
-            else:
-                await status_message.edit_text("❌ __Failed to generate report!__")
+    finally:
+        try:
+            os.unlink(temp_path)
+        except Exception as e:
+            logger.error(f"Error deleting temp file: {e}")
 
-        finally:
-            try:
-                os.unlink(temp_path)
-            except Exception as e:
-                logger.error(f"Error removing temp file: {e}")
+async def process_media(message: Message):
+    media = message.document or message.video or message.audio
+    if not media:
+        return await status.edit("❌ No media found!")
 
-    except Exception as e:
-        logger.error(f"Error processing media: {e}", exc_info=True)
-        await status_message.edit_text(
-            "❌ __An error occurred while processing the media!__\n"
-            "Please try again later."
-        )
+    file_name = getattr(media, 'file_name', 'Unknown')
+    file_size = getattr(media, 'file_size', 0)
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        temp_path = tmp.name
 
-@app.on_message(filters.command(["mediainfo", "mi"]))
-async def mediainfo_command(client: Client, message: Message):
-    """Handle /mediainfo and /mi commands."""
-    if not (message.reply_to_message and 
-            (message.reply_to_message.document or 
-             message.reply_to_message.video or 
-             message.reply_to_message.audio)):
-        await message.reply_text(
-            "❌ __Please reply to a media file with /mediainfo or /mi__"
-        )
-        return
-    await process_media(message.reply_to_message)
+    try:
+        path = await stream_media(message, temp_path)
+        if not path:
+            return await message.reply_text("❌ Download failed.")
+        info = await get_mediainfo(path)
+        if not info:
+            return await message.reply_text("❌ Failed to get media info.")
+        html = parse_mediainfo(info, file_name, file_size)
+        url = await create_telegraph_page(file_name, html)
+        if not url:
+            return await message.reply_text("❌ Telegraph page creation failed.")
+        keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📋 View Media Info", url=url)]
+    ])
+        await message.reply_text(f"**Mᴇᴅɪᴀ Iɴғᴏ Gᴇɴᴇʀᴀᴛᴇᴅ!**\n\n📁 **ғɪʟᴇ:** `{file_name}`\n\n💾 **Sɪᴢᴇ:** `{format_size(file_size)}`\n\n🤖 **[DS Mediainfo Bot](https://t.me/DS_Mediainfo_Bot)**",
+            reply_markup=keyboard,
+            disable_web_page_preview=True,
+    )
+        
+    finally:
+        os.unlink(temp_path)
+        
+@app.on_message(filters.command("start") & filters.private)
+async def start_command(client: Client, message: Message):
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("➕ Add me to your channel ➕", url=f"https://t.me/{BOT_USERNAME}?startchannel=true")]
+    ])
+    await message.reply_text(f"""👋 Hᴇʟʟᴏ {message.from_user.mention}!
+
+I ᴄᴀɴ ᴀɴᴀʟʏᴢᴇ ᴍᴇᴅɪᴀ ғɪʟᴇꜱ ᴀɴᴅ ᴘʀᴏᴠɪᴅᴇ ᴅᴇᴛᴀɪʟᴇᴅ ɪɴғᴏʀᴍᴀᴛɪᴏɴ.
+➤ Sᴇɴᴅ ᴍᴇ ᴀɴʏ ᴍᴇᴅɪᴀ ғɪʟᴇ
+➤ Wᴏʀᴋɪɴɢ ɪɴ Cʜᴀɴɴᴇʟ & ᴘᴍ""",
+        reply_markup=keyboard,
+        disable_web_page_preview=True,
+    )
+
+'''@app.on_message(filters.command(["mediainfo", "mi"]))
+async def mediainfo_cmd(client, message: Message):
+    if not message.reply_to_message:
+        return await message.reply("❌ Reply to a media file!")
+    await process_media(message.reply_to_message)'''
 
 @app.on_message(filters.private & (filters.document | filters.video | filters.audio))
-async def media_handler(client: Client, message: Message):
+async def handle_file(client, message: Message):
+    sticker = random.choice(STICKER_IDS)
+    ds = await message.reply_sticker(sticker)
     await process_media(message)
-
-# Web server
+    await ds.delete()
+    
 web = Flask(__name__)
 
 @web.route('/')
@@ -268,7 +239,8 @@ def index():
     return "Bot is running!"
 
 def run():
-    web.run(host="0.0.0.0", port=int(os.environ.get('PORT', 8080)))
+    port = int(os.environ.get('PORT', 8080))
+    web.run(host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
     print("Starting MediaInfo Bot...")
